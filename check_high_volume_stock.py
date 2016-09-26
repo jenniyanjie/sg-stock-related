@@ -77,6 +77,8 @@ class checkHighVolume:
                         'priceBook', 'short_ratio', 'dividend_yield']])                
             a.writerows(result2Write)    
         return
+        
+    def plot(self)
                 
 runable = checkHighVolume()                
    
