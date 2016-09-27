@@ -82,7 +82,7 @@ class checkHighVolume:
             a.writerows(result2Write)    
         return
         
-    def plot(self):
+    def plot(self,stock):
         '''
         Use this to dynamically pull a stock:
         '''
