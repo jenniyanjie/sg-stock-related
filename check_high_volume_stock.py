@@ -10,7 +10,7 @@ import os
 from collections import defaultdict
 from yahoo_finance import Share
 from datetime import datetime
-from datetime import timedelta
+#from datetime import timedelta
 from time import time
 import csv
 import urllib2
@@ -27,7 +27,12 @@ if len(sys.argv) >= 2:
     writeDir = sys.argv[1]
 else:
     writeDir = os.getcwd()
-    writeDir = '/Users/Jennifer/Google Drive/highVolumnStock' # for mac usage
+#    writeDir = '/Users/Jennifer/Google Drive/highVolumnStock' # for mac usage
+
+test = sys.path[2]
+#dn = os.path.dirname(os.path.realpath(sys.argv[0]))
+dn = os.path.dirname(os.path.realpath('check_high_volume_stock.py'))
+
 
 class checkHighVolume:   
     def __init__(self, workDir = os.getcwd()):
@@ -141,55 +146,56 @@ def computeMACD(x, slow=26, fast=12):
     return emaslow, emafast, emafast - emaslow
     
 #%%       
-def plotGraph(stockNm, MA1, MA2):
+def graphData(stock,MA1,MA2):
     '''
-    Use this to dynamically pull a stock:
+        Use this to dynamically pull a stock:
     '''
+    stock = 'AAPL'
     MA1 = 10
     MA2 = 50
     try:
-        print 'Currently Pulling', stockNm
+        print 'Currently Pulling',stock
         print str(datetime.fromtimestamp(int(time())).strftime('%Y-%m-%d %H:%M:%S'))
-        stock = Share(stockNm)
-        stockFile = stock.get_historical((datetime.now() - timedelta(days=1*365+MA2)).strftime('%Y-%m-%d'),
-                             datetime.now().strftime('%Y-%m-%d'))
-        stockFile.reverse()
-                             
+        urlToVisit = 'http://chartapi.finance.yahoo.com/instrument/1.0/'+stock+'/chartdata;type=quote;range=1y/csv'
+        stockFile =[]
+        try:
+            sourceCode = urllib2.urlopen(urlToVisit).read()
+            splitSource = sourceCode.split('\n')
+            for eachLine in splitSource:
+                splitLine = eachLine.split(',')
+                if len(splitLine)==6:
+                    if 'values' not in eachLine:
+                        stockFile.append(eachLine)
+        except Exception, e:
+            print str(e), 'failed to organize pulled data.'
     except Exception,e:
         print str(e), 'failed to pull pricing data'
-        
-    try:  
-#        keys = ['date', 'closep', 'highp', 'lowp, openp, volume]
-        date = [dayDt['Date'] for dayDt in stockFile]
-        openp = [float(dayDt['Open']) for dayDt in stockFile]
-        closep = [float(dayDt['Adj_Close']) for dayDt in stockFile]
-        highp = [float(dayDt['High']) for dayDt in stockFile]
-        lowp = [float(dayDt['Low']) for dayDt in stockFile]
-        volume = [int(dayDt['Volume']) for dayDt in stockFile]
-        
-        Av1 = movingaverage(np.asarray(closep), MA1)
-        Av2 = movingaverage(np.asarray(closep), MA2)
-        SP = len(date[MA2-1:])
+    try:   
+        date, closep, highp, lowp, openp, volume = np.loadtxt(stockFile,delimiter=',', unpack=True,
+                                                              converters={ 0: mdates.strpdate2num('%Y%m%d')})
         x = 0
         y = len(date)
         newAr = []
         while x < y:
-            appendLine = date[x],openp[x],closep[x],highp[x],lowp[x],volume[x]
+            appendLine = date[x],openp[x],highp[x],lowp[x],closep[x],volume[x]
             newAr.append(appendLine)
-            x+=1        
+            x+=1
+            
+        Av1 = movingaverage(closep, MA1)
+        Av2 = movingaverage(closep, MA2)
 
+        SP = len(date[MA2-1:])
+            
         fig = plt.figure(facecolor='#07000d')
 
         ax1 = plt.subplot2grid((6,4), (1,0), rowspan=4, colspan=4, axisbg='#07000d')
-        candlestick_ohlc(ax1, newAr[-SP:], width=.6, colorup='#53c156', colordown='#ff1717')     
+        candlestick_ohlc(ax1, newAr[-SP:], width=.6, colorup='#53c156', colordown='#ff1717')
 
         Label1 = str(MA1)+' SMA'
         Label2 = str(MA2)+' SMA'
 
         ax1.plot(date[-SP:],Av1[-SP:],'#e1edf9',label=Label1, linewidth=1.5)
-        ax1.plot(date[-SP:],Av2[-SP:],'#4ee6fd',label=Label2, linewidth=1.5)      
-        
- 
+        ax1.plot(date[-SP:],Av2[-SP:],'#4ee6fd',label=Label2, linewidth=1.5)
         
         ax1.grid(True, color='w')
         ax1.xaxis.set_major_locator(mticker.MaxNLocator(10))
@@ -208,7 +214,8 @@ def plotGraph(stockNm, MA1, MA2):
                    fancybox=True, borderaxespad=0.)
         maLeg.get_frame().set_alpha(0.4)
         textEd = pylab.gca().get_legend().get_texts()
-        pylab.setp(textEd[0:5], color = 'w')           
+        pylab.setp(textEd[0:5], color = 'w')
+
         volumeMin = 0
         
         ax0 = plt.subplot2grid((6,4), (0,0), sharex=ax1, rowspan=1, colspan=4, axisbg='#07000d')
@@ -276,16 +283,17 @@ def plotGraph(stockNm, MA1, MA2):
             xytext=(0.8, 0.9), textcoords='axes fraction',
             arrowprops=dict(facecolor='white', shrink=0.05),
             fontsize=14, color = 'w',
-            horizontalalignment='right', verticalalignment='bottom')        
+            horizontalalignment='right', verticalalignment='bottom')
+
         plt.subplots_adjust(left=.09, bottom=.14, right=.94, top=.95, wspace=.20, hspace=0)
         plt.show()
+        fig.savefig('example.png',facecolor=fig.get_facecolor())
+           
     except Exception,e:
         print 'main loop',str(e)
-
-    return
         
 
 
 if __name__ == "__main__":
 #    runable = checkHighVolume()   
-    plotGraph('AAPL', 10, 50)
+    graphData('AAPL', 10, 50)
