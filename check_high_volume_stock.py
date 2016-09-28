@@ -46,7 +46,7 @@ class checkHighVolume:
                     self.stockNm[tmp[0]+'.SI'].append(tmp[1])                
         print 'totally get {} SGX stock name!'.format(len(self.stockNm))
         self.select_stock()
-        self.write_result(writeDir)
+        return self.resultStock
         
     def select_stock(self):
         start_time = time()
@@ -79,23 +79,23 @@ class checkHighVolume:
         self.resultStock = {symb:self.stockNm[symb] for symb in self.stockNm.keys() if len(self.stockNm[symb]) > 1}
         print '{} stock(s) has marvelous volume'.format(count) 
         print 'total time of running: {} seconds'.format(time()-start_time)
-        return
+        return 
         
-    def write_result(self,workDir = os.getcwd()):
-        result2Write = []
-        for symb in self.resultStock.keys():
-            tmp = [symb]
-            for i in range(len(self.resultStock[symb])):        
-                tmp.append(self.resultStock[symb][i])
-            result2Write.append(['NA' if v is None else v for v in tmp])          
-        resultFile = workDir + '/checkHighVolume_'+datetime.now().strftime('%Y-%m-%d-%H-%M')+'.csv'
-        with open(resultFile, 'wb') as outF:
-            a = csv.writer(outF,delimiter = ',')
-            a.writerows([['symbol', 'stockName', 'volume', 'avg_volume', 'volume_ratio',
-                        'price', 'pre_price', 'avg_50_day', 'avg_200_day', 'PEratio',
-                        'priceBook', 'short_ratio', 'dividend_yield']])                
-            a.writerows(result2Write)    
-        return
+def writeResult(resultStock, workDir = os.getcwd()):
+    result2Write = []
+    for symb in resultStock.keys():
+        tmp = [symb]
+        for i in range(len(resultStock[symb])):        
+            tmp.append(resultStock[symb][i])
+        result2Write.append(['NA' if v is None else v for v in tmp])          
+    resultFile = workDir + '/checkHighVolume_'+datetime.now().strftime('%Y-%m-%d-%H-%M')+'.csv'
+    with open(resultFile, 'wb') as outF:
+        a = csv.writer(outF,delimiter = ',')
+        a.writerows([['symbol', 'stockName', 'volume', 'avg_volume', 'volume_ratio',
+                    'price', 'pre_price', 'avg_50_day', 'avg_200_day', 'PEratio',
+                    'priceBook', 'short_ratio', 'dividend_yield']])                
+        a.writerows(result2Write)    
+    return
         
 def rsiFunc(prices, n=14):
     deltas = np.diff(prices)
@@ -278,12 +278,6 @@ def graphData(stock,MA1,MA2):
 
         plt.setp(ax0.get_xticklabels(), visible=False)
         plt.setp(ax1.get_xticklabels(), visible=False)
-        
-        ax1.annotate('Big news!',(date[510],Av1[510]),
-            xytext=(0.8, 0.9), textcoords='axes fraction',
-            arrowprops=dict(facecolor='white', shrink=0.05),
-            fontsize=14, color = 'w',
-            horizontalalignment='right', verticalalignment='bottom')
 
         plt.subplots_adjust(left=.09, bottom=.14, right=.94, top=.95, wspace=.20, hspace=0)
         plt.show()
@@ -292,8 +286,11 @@ def graphData(stock,MA1,MA2):
     except Exception,e:
         print 'main loop',str(e)
         
-
+    return
 
 if __name__ == "__main__":
-#    runable = checkHighVolume()   
-    graphData('AAPL', 10, 50)
+#    writeDir = '/Users/Jennifer/Google Drive/highVolumnStock' # for mac usage
+    selectedStocks = checkHighVolume()
+    writeResult(selectedStocks, writeDir)
+    
+#    graphData('AAPL', 10, 50)
