@@ -7,6 +7,7 @@ Created on Sun May 29 17:19:35 2016
 from __future__ import division
 import sys
 import os
+import errno
 from collections import defaultdict
 from yahoo_finance import Share
 from datetime import datetime
@@ -33,53 +34,50 @@ test = sys.path[2]
 #dn = os.path.dirname(os.path.realpath(sys.argv[0]))
 dn = os.path.dirname(os.path.realpath('check_high_volume_stock.py'))
 
-
-class checkHighVolume:   
-    def __init__(self, workDir = os.getcwd()):
-        self.stockNm = defaultdict(list)
-        self.resultStock = {}
-        SGX_name_list = workDir + '/SGX.txt'
-        with open(SGX_name_list,'r') as F:
-            for line in F:
-                if not line.startswith('Symbol'):
-                    tmp = line.rstrip().split('\t')
-                    self.stockNm[tmp[0]+'.SI'].append(tmp[1])                
-        print 'totally get {} SGX stock name!'.format(len(self.stockNm))
-        self.select_stock()
-        return self.resultStock
-        
-    def select_stock(self):
-        start_time = time()
-        count = 0     
-        num = 0
-        for symb in self.stockNm.keys():
-            try:
-                stock = Share(symb)
-                vol = int(stock.get_volume())
-                daily_avg_vol = int(stock.get_avg_daily_volume())
-                price = float(stock.get_price())
-                prevPrice = float(stock.get_prev_close())
-                avg_50day = float(stock.get_50day_moving_avg())
-                avg_200day = float(stock.get_200day_moving_avg())
-            except (TypeError,AttributeError):
-                continue
-            num += 1
-            volRatio = vol / daily_avg_vol
-            print num,self.stockNm[symb][0],volRatio
-        
-            if volRatio > 6 and price > prevPrice and price > avg_50day:
-                count += 1
-                self.stockNm[symb].extend([vol, daily_avg_vol, volRatio, price, prevPrice, 
-                                        avg_50day, avg_200day, 
-                                        stock.get_price_earnings_ratio(),
-                                        stock.get_price_book(),
-                                        stock.get_short_ratio(),
-                                        stock.get_dividend_yield()])
-        
-        self.resultStock = {symb:self.stockNm[symb] for symb in self.stockNm.keys() if len(self.stockNm[symb]) > 1}
-        print '{} stock(s) has marvelous volume'.format(count) 
-        print 'total time of running: {} seconds'.format(time()-start_time)
-        return 
+       
+def getSGX():
+    stockNm = defaultdict(list)
+    with open(os.getcwd() + '/SGX.txt','r') as F:
+        for line in F:
+            if not line.startswith('Symbol'):
+                tmp = line.rstrip().split('\t')
+                stockNm[tmp[0]+'.SI'].append(tmp[1])                
+    print 'totally get {} SGX stock name!'.format(len(stockNm))  
+    return stockNm
+       
+def selectStock(stocks):
+    start_time = time()
+    resultStock = {}
+    count = 0     
+    num = 0
+    for symb in stocks.keys():
+        try:
+            stock = Share(symb)
+            vol = int(stock.get_volume())
+            daily_avg_vol = int(stock.get_avg_daily_volume())
+            price = float(stock.get_price())
+            prevPrice = float(stock.get_prev_close())
+            avg_50day = float(stock.get_50day_moving_avg())
+            avg_200day = float(stock.get_200day_moving_avg())
+        except (TypeError,AttributeError):
+            continue
+        num += 1
+        volRatio = vol / daily_avg_vol
+        print num,stocks[symb][0],volRatio
+    
+        if volRatio > 6 and price > prevPrice and price > avg_50day:
+            count += 1
+            stocks[symb].extend([vol, daily_avg_vol, volRatio, price, prevPrice, 
+                                    avg_50day, avg_200day, 
+                                    stock.get_price_earnings_ratio(),
+                                    stock.get_price_book(),
+                                    stock.get_short_ratio(),
+                                    stock.get_dividend_yield()])
+    
+    resultStock = {symb:stocks[symb] for symb in stocks.keys() if len(stocks[symb]) > 1}
+    print '{} stock(s) has marvelous volume'.format(count) 
+    print 'total time of running: {} seconds'.format(time()-start_time)
+    return resultStock
         
 def writeResult(resultStock, workDir = os.getcwd()):
     result2Write = []
@@ -96,7 +94,8 @@ def writeResult(resultStock, workDir = os.getcwd()):
                     'priceBook', 'short_ratio', 'dividend_yield']])                
         a.writerows(result2Write)    
     return
-        
+ 
+#%% for ploting       
 def rsiFunc(prices, n=14):
     deltas = np.diff(prices)
     seed = deltas[:n+1]
@@ -144,15 +143,12 @@ def computeMACD(x, slow=26, fast=12):
     emaslow = ExpMovingAverage(x, slow)
     emafast = ExpMovingAverage(x, fast)
     return emaslow, emafast, emafast - emaslow
-    
-#%%       
-def graphData(stock,MA1,MA2):
+          
+def graphStock(stock, MA1, MA2, writeDir = os.getcwd()):
     '''
         Use this to dynamically pull a stock:
     '''
-    stock = 'AAPL'
-    MA1 = 10
-    MA2 = 50
+    # pulling data
     try:
         print 'Currently Pulling',stock
         print str(datetime.fromtimestamp(int(time())).strftime('%Y-%m-%d %H:%M:%S'))
@@ -170,6 +166,7 @@ def graphData(stock,MA1,MA2):
             print str(e), 'failed to organize pulled data.'
     except Exception,e:
         print str(e), 'failed to pull pricing data'
+    # plot
     try:   
         date, closep, highp, lowp, openp, volume = np.loadtxt(stockFile,delimiter=',', unpack=True,
                                                               converters={ 0: mdates.strpdate2num('%Y%m%d')})
@@ -281,16 +278,28 @@ def graphData(stock,MA1,MA2):
 
         plt.subplots_adjust(left=.09, bottom=.14, right=.94, top=.95, wspace=.20, hspace=0)
         plt.show()
-        fig.savefig(stock+'.jpg',dpi = 900, facecolor=fig.get_facecolor())
+        # save the figure
+        figNm = writeDir + '/' + datetime.now().strftime('%Y-%m-%d') + '/' + stock +'.jpg'
+        if not os.path.exists(os.path.dirname(figNm)):
+            try:
+                os.makedirs(os.path.dirname(figNm))
+            except OSError as exc: # Guard against race condition
+                if exc.errno != errno.EEXIST:
+                    raise     
+        fig.savefig(figNm, dpi = 900, facecolor=fig.get_facecolor())
            
     except Exception,e:
         print 'main loop',str(e)
-        
+       
     return
 
+#%% main
 if __name__ == "__main__":
-#    writeDir = '/Users/Jennifer/Google Drive/highVolumnStock' # for mac usage
-    selectedStocks = checkHighVolume()
-    writeResult(selectedStocks, writeDir)
-    
-#    graphData('AAPL', 10, 50)
+#    writeDir = '/Users/Jennifer/Google Drive/highVolumnStock' # for Jennifer's mac usage
+    writeDir = os.getcwd()
+    SGX_stocks = getSGX()
+    high_volume_stock = selectStock(SGX_stocks)
+    writeResult(high_volume_stock, writeDir)
+    # plot the result
+    for symb in high_volume_stock.keys():
+        graphStock(symb, 50, 100, writeDir)
