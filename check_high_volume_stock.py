@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+#!/Users/Jennifer/anaconda2/bin/python
 """
 Created on Sun May 29 17:19:35 2016
 
@@ -16,23 +16,21 @@ from time import time
 import csv
 import urllib2
 import numpy as np
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import matplotlib.dates as mdates
 from matplotlib.finance import candlestick_ohlc
-import matplotlib
 import pylab
 matplotlib.rcParams.update({'font.size': 9})
 
 if len(sys.argv) >= 2:
     writeDir = sys.argv[1]
 else:
-    writeDir = os.getcwd()
-#    writeDir = '/Users/Jennifer/Google Drive/highVolumnStock' # for mac usage
+#    writeDir = os.getcwd()
+    writeDir = '/Users/Jennifer/Google Drive/highVolumnStock' # for mac usage
 
-test = sys.path[2]
-#dn = os.path.dirname(os.path.realpath(sys.argv[0]))
-dn = os.path.dirname(os.path.realpath('check_high_volume_stock.py'))
 
        
 def getSGX():
@@ -144,13 +142,13 @@ def computeMACD(x, slow=26, fast=12):
     emafast = ExpMovingAverage(x, fast)
     return emaslow, emafast, emafast - emaslow
           
-def graphStock(stock, MA1, MA2, writeDir = os.getcwd()):
+def graphStock(stock, stockNm, MA1, MA2, writeDir = os.getcwd()):
     '''
         Use this to dynamically pull a stock:
     '''
     # pulling data
     try:
-        print 'Currently Pulling',stock
+        print 'Currently Pulling',stock, stockNm
         print str(datetime.fromtimestamp(int(time())).strftime('%Y-%m-%d %H:%M:%S'))
         urlToVisit = 'http://chartapi.finance.yahoo.com/instrument/1.0/'+stock+'/chartdata;type=quote;range=1y/csv'
         stockFile =[]
@@ -271,13 +269,13 @@ def graphStock(stock, MA1, MA2, writeDir = os.getcwd()):
         for label in ax2.xaxis.get_ticklabels():
             label.set_rotation(45)
 
-        plt.suptitle(stock.upper(),color='w')
+        plt.suptitle(stock.upper()+':'+stockNm, color='w')
 
         plt.setp(ax0.get_xticklabels(), visible=False)
         plt.setp(ax1.get_xticklabels(), visible=False)
 
         plt.subplots_adjust(left=.09, bottom=.14, right=.94, top=.95, wspace=.20, hspace=0)
-        plt.show()
+#        plt.show()
         # save the figure
         figNm = writeDir + '/' + datetime.now().strftime('%Y-%m-%d') + '/' + stock +'.jpg'
         if not os.path.exists(os.path.dirname(figNm)):
@@ -295,11 +293,11 @@ def graphStock(stock, MA1, MA2, writeDir = os.getcwd()):
 
 #%% main
 if __name__ == "__main__":
-#    writeDir = '/Users/Jennifer/Google Drive/highVolumnStock' # for Jennifer's mac usage
-    writeDir = os.getcwd()
+    writeDir = '/Users/Jennifer/Google Drive/highVolumnStock' # for Jennifer's mac usage
+#    writeDir = os.getcwd()
     SGX_stocks = getSGX()
     high_volume_stock = selectStock(SGX_stocks)
     writeResult(high_volume_stock, writeDir)
     # plot the result
     for symb in high_volume_stock.keys():
-        graphStock(symb, 50, 100, writeDir)
+        graphStock(symb,high_volume_stock[symb][1], 50, 100, writeDir)
