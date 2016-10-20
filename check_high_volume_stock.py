@@ -1,4 +1,4 @@
-#!/Users/Jennifer/anaconda2/bin/python
+# -*- coding: utf-8 -*-
 """
 Created on Sun May 29 17:19:35 2016
 
@@ -8,12 +8,9 @@ from __future__ import division
 import sys
 import os
 import errno
-from collections import defaultdict
-from yahoo_finance import Share
+from re import sub
 from datetime import datetime
-#from datetime import timedelta
 from time import time
-import csv
 import urllib2
 import numpy as np
 import matplotlib
@@ -32,67 +29,78 @@ else:
     writeDir = '/Users/Jennifer/Google Drive/highVolumnStock' # for mac usage
 
 
-       
-def getSGX():
-    stockNm = defaultdict(list)
-    with open(os.getcwd() + '/SGX.txt','r') as F:
-        for line in F:
-            if not line.startswith('Symbol'):
-                tmp = line.rstrip().split('\t')
-                stockNm[tmp[0]+'.SI'].append(tmp[1])                
-    print 'totally get {} SGX stock name!'.format(len(stockNm))  
-    return stockNm
-       
-def selectStock(stocks):
-    start_time = time()
-    resultStock = {}
-    count = 0     
-    num = 0
-    for symb in stocks.keys():
-        try:
-            stock = Share(symb)
-            vol = int(stock.get_volume())
-            daily_avg_vol = int(stock.get_avg_daily_volume())
-            price = float(stock.get_price())
-            prevPrice = float(stock.get_prev_close())
-            avg_50day = float(stock.get_50day_moving_avg())
-            avg_200day = float(stock.get_200day_moving_avg())
-        except (TypeError,AttributeError):
-            continue
-        num += 1
-        volRatio = vol / daily_avg_vol
-        print num,stocks[symb][0],volRatio
-    
-        if volRatio > 6 and price > prevPrice and price > avg_50day:
-            count += 1
-            stocks[symb].extend([vol, daily_avg_vol, volRatio, price, prevPrice, 
-                                    avg_50day, avg_200day, 
-                                    stock.get_price_earnings_ratio(),
-                                    stock.get_price_book(),
-                                    stock.get_short_ratio(),
-                                    stock.get_dividend_yield()])
-    
-    resultStock = {symb:stocks[symb] for symb in stocks.keys() if len(stocks[symb]) > 1}
-    print '{} stock(s) has marvelous volume'.format(count) 
-    print 'total time of running: {} seconds'.format(time()-start_time)
-    return resultStock
-        
-def writeResult(resultStock, workDir = os.getcwd()):
-    result2Write = []
-    for symb in resultStock.keys():
-        tmp = [symb]
-        for i in range(len(resultStock[symb])):        
-            tmp.append(resultStock[symb][i])
-        result2Write.append(['NA' if v is None else v for v in tmp])          
-    resultFile = workDir + '/checkHighVolume_'+datetime.now().strftime('%Y-%m-%d-%H-%M')+'.csv'
-    with open(resultFile, 'wb') as outF:
-        a = csv.writer(outF,delimiter = ',')
-        a.writerows([['symbol', 'stockName', 'volume', 'avg_volume', 'volume_ratio',
-                    'price', 'pre_price', 'avg_50_day', 'avg_200_day', 'PEratio',
-                    'priceBook', 'short_ratio', 'dividend_yield']])                
-        a.writerows(result2Write)    
-    return
- 
+def volume_scanner(workDir = os.getcwd()):
+    stknm = ''
+    resultStk = []
+    reader = open(os.getcwd() + '/SGX.txt','r')
+    print 'symbol volume avg_vol price prev_clo 50_avg ratio'
+    for i,line in enumerate(reader, start=1): 
+        if not line.startswith('Symbol'):
+            symbol = line.rstrip().split('\t')[0]+'.SI' 
+            stknm += symbol +'+'
+            if i%200 == 0:
+                urlToVisit = 'http://finance.yahoo.com/d/quotes.csv?s=' +\
+                            stknm[:-1] + '&f=sva2l1pm3'
+                stknm = ''
+                sourceCode = urllib2.urlopen(urlToVisit).read()
+                splitSource = sourceCode.split('\n')
+                for eachLine in splitSource:
+                    splitLine = eachLine.split(',')
+                    if len(splitLine) == 6 and 'N/A' not in splitLine:
+                        symb = sub(r'^"|"$', '', splitLine[0])
+                        v = int(splitLine[1])
+                        avg_daily_v = int(splitLine[2])
+                        last_p = float(splitLine[3])
+                        prvi_clo = float(splitLine[4])
+                        avg50 = float(splitLine[5])
+                        ratio = v/avg_daily_v
+                        if ratio > 6 and last_p > prvi_clo and last_p > avg50:
+                            resultStk.append(symb)
+                            print symb, v, avg_daily_v, last_p, prvi_clo, avg50, '{0:.2f}'.format(ratio)
+    # the left-over
+    urlToVisit = 'http://finance.yahoo.com/d/quotes.csv?s=' +\
+                stknm[:-1] + '&f=sva2l1pm3'
+    sourceCode = urllib2.urlopen(urlToVisit).read()
+    splitSource = sourceCode.split('\n')
+    for eachLine in splitSource:
+        splitLine = eachLine.split(',')
+        if len(splitLine) == 6 and 'N/A' not in splitLine:
+            symb = sub(r'^"|"$', '', splitLine[0])
+            v = int(splitLine[1])
+            avg_daily_v = int(splitLine[2])
+            last_p = float(splitLine[3])
+            prvi_clo = float(splitLine[4])
+            avg50 = float(splitLine[5])
+            ratio = v/avg_daily_v
+            if ratio > 6 and last_p > prvi_clo and last_p > avg50:
+                resultStk.append(symb)
+                print symb, v, avg_daily_v, last_p, prvi_clo, avg50, '{0:.2f}'.format(ratio)
+    print 'totally get {} SGX stock name!'.format(i-1) 
+    print 'scanned {} stock(s) with marvelous volume!'.format(len(resultStk)) 
+    reader.close()
+    # download the details of the result stock
+    urlToVisit = 'http://finance.yahoo.com/d/quotes.csv?s='
+    for symb in resultStk:
+        urlToVisit += symb + '+'
+    urlToVisit = urlToVisit[:-1] + \
+                '&f=snpohgd1t1l1kjm3m4va2k3ydr1qj1eb4j4p5p6rr5s7'
+    response = urllib2.urlopen(urlToVisit).read()
+    # write result to csv
+    resultF = workDir + '/checkHighVolume_'+datetime.now().strftime('%Y-%m-%d-%H-%M')+'.csv'
+    writer = open(resultF, 'w')                 
+    writer.write('Symbol,Stock_name,Previous_close,Open,'\
+                  'Daily_high,Daily_low,'\
+                  'Last_trade_date,Last_trade_time,Last_trade_price,'\
+                  '52_week_high,52_week_low,'\
+                  '50_day_moving_average,100_day_moving_average,'\
+                  'Volume,Average_daily_volume,Lasts_trade_size,'\
+                  'Divident_yield,Divident_per_share,Divident_pay_date,Ex_divident_date,'\
+                  'Market_cap,EPS,'\
+                  'Book_value,EBITDA,P/S,P/B,P/E,PEG,short_ratio\n')
+    writer.write(response)  
+    writer.close()
+    return resultStk
+
 #%% for ploting       
 def rsiFunc(prices, n=14):
     deltas = np.diff(prices)
@@ -142,20 +150,22 @@ def computeMACD(x, slow=26, fast=12):
     emafast = ExpMovingAverage(x, fast)
     return emaslow, emafast, emafast - emaslow
           
-def graphStock(stock, stockNm, MA1, MA2, writeDir = os.getcwd()):
+def graphStock(stock, MA1, MA2, writeDir = os.getcwd()):
     '''
         Use this to dynamically pull a stock:
     '''
     # pulling data
     try:
-        print 'Currently Pulling',stock, stockNm
-        print str(datetime.fromtimestamp(int(time())).strftime('%Y-%m-%d %H:%M:%S'))
+        print 'Currently Pulling', stock, '...'
+#        print str(datetime.fromtimestamp(int(time())).strftime('%Y-%m-%d %H:%M:%S'))
         urlToVisit = 'http://chartapi.finance.yahoo.com/instrument/1.0/'+stock+'/chartdata;type=quote;range=1y/csv'
         stockFile =[]
         try:
             sourceCode = urllib2.urlopen(urlToVisit).read()
             splitSource = sourceCode.split('\n')
             for eachLine in splitSource:
+                if eachLine.startswith('Company-Name'):
+                    stockNm = eachLine.split(':')[1]
                 splitLine = eachLine.split(',')
                 if len(splitLine)==6:
                     if 'values' not in eachLine:
@@ -269,7 +279,7 @@ def graphStock(stock, stockNm, MA1, MA2, writeDir = os.getcwd()):
         for label in ax2.xaxis.get_ticklabels():
             label.set_rotation(45)
 
-        plt.suptitle(stock.upper()+':'+stockNm, color='w')
+        plt.suptitle(stock.upper() + ' -- ' + stockNm.upper(),color='w')
 
         plt.setp(ax0.get_xticklabels(), visible=False)
         plt.setp(ax1.get_xticklabels(), visible=False)
@@ -294,10 +304,7 @@ def graphStock(stock, stockNm, MA1, MA2, writeDir = os.getcwd()):
 #%% main
 if __name__ == "__main__":
     writeDir = '/Users/Jennifer/Google Drive/highVolumnStock' # for Jennifer's mac usage
-#    writeDir = os.getcwd()
-    SGX_stocks = getSGX()
-    high_volume_stock = selectStock(SGX_stocks)
-    writeResult(high_volume_stock, writeDir)
+    high_volume_stock = volume_scanner(writeDir)
     # plot the result
-    for symb in high_volume_stock.keys():
-        graphStock(symb,high_volume_stock[symb][1], 50, 100, writeDir)
+    for symb in high_volume_stock:
+        graphStock(symb, 50, 100, writeDir)
