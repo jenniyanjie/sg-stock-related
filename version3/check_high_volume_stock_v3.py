@@ -26,14 +26,23 @@ else:
 #    writeDir = os.getcwd()
     writeDir = '/Users/Jennifer/Google Drive/highVolumnStock' # for mac usage
 
-def download_stock_df(exchange):
-    hh = GoogleStockDataExtract(exchange)
-    hh.retrieve_all_stock_data()
-    return hh.result_google_ext_df
+def stock_screener(exchange = 'SGX', df):
+    '''
+    exchange: 'SGX' or 'HKG'
+    df: the dataframe of the stock stats: useful col:
+        'CompanyName','SYMBOL','MarketCap', 'Volume', 'AverageVolume', 
+        'QuoteLast', 'QuotePercChange'
+    '''
+    
+    return
 
 #TODO: select data based on creteria, get the symbo list, print the selected df
    
 def volume_scanner(workDir = os.getcwd()):
+    '''
+    download stock data from yahoo finance and select stock based on creteria
+    save the selected stock symbol to resultStk
+    '''
     stknm = ''
     resultStk = []
     reader = open(os.getcwd() + '/SGX.txt','r')
@@ -84,7 +93,7 @@ def volume_scanner(workDir = os.getcwd()):
     reader.close()
     # download the details of the result stock
     urlToVisit = 'http://finance.yahoo.com/d/quotes.csv?s='
-    for symb in  :
+    for symb in resultStk:
         urlToVisit += symb + '+'
     urlToVisit = urlToVisit[:-1] + \
                 '&f=snpohgd1t1l1kjm3m4va2k3ydr1qj1eb4j4p5p6rr5s7'
@@ -308,7 +317,16 @@ def graphStock(stock, MA1, MA2, writeDir = os.getcwd()):
 #%% main
 if __name__ == "__main__":
     writeDir = '/Users/Jennifer/Google Drive/highVolumnStock' # for Jennifer's mac usage
+    
+    sgx = GoogleStockDataExtract('SGX')
+    sgx.retrieve_all_stock_data()
+    
+    hkg = GoogleStockDataExtract('HKG')
+    hkg.retrieve_all_stock_data()
+    
+    
     high_volume_stock = volume_scanner(writeDir)
     # plot the result
     for symb in high_volume_stock:
         graphStock(symb, 50, 100, writeDir)
+        

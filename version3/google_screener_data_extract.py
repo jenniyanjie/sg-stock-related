@@ -1,3 +1,5 @@
+#!/usr/bin/python2
+# -*- coding: utf-8 -*-
 """
     Extract info from google finance stock screener.
     Author: Tan Kok Hua
@@ -17,8 +19,10 @@
 
 """
 import os, re, sys, time, datetime, copy, calendar
+import numpy as np
 import pandas, pdb
 from pattern.web import URL, extension, cache, plaintext
+from pprint import pprint
 from jsonwebretrieve import WebJsonRetrieval
 import simplejson as json
 
@@ -33,13 +37,12 @@ class GoogleStockDataExtract(object):
         ## url parameters for joining
         self.target_url_start = 'https://www.google.com/finance?output=json&start=0&num=3000&noIL=1&q=[%28exchange%20%3D%3D%20%22#$%22%29%20%26%20%28'
         self.target_exchange = exchange
-        #self.target_url_start = 'https://www.google.com/finance?output=json&start=0&num=3000&noIL=1&q=[%28exchange%20%3D%3D%20%22NASDAQ%22%29%20%26%20%28'
-        self.target_url_end = ']&restype=company&ei=nX-hWOiEAY66ugS6k6PADg' # new
+        self.target_url_end = ']&restype=company&ei=nX-hWOiEAY66ugS6k6PADg' # the url is changing with time, from time to time need to update
         self.temp_url_mid = ''
         self.target_full_url = ''
         current_script_folder = os.path.dirname(os.path.realpath(__file__))
-        self.mid_url_list_filepath = os.path.join(current_script_folder,(self.target_exchange + '_googlescreen_url.txt'))
-
+        self.mid_url_list_filepath = os.path.join(current_script_folder,'bin',(self.target_exchange + '_googlescreen_url.txt'))
+        
         with open(self.mid_url_list_filepath, 'r') as f:
             url_data =f.readlines()
 
@@ -73,11 +76,6 @@ class GoogleStockDataExtract(object):
     def retrieve_stockdata(self):
         """ Retrieve the json file based on the self.target_full_url"""
         ds = WebJsonRetrieval()
-        
-#        print '======================='
-#        print self.target_full_url
-#        print '\n'
-
         ds.set_url(self.target_full_url)
         ds.download_json() # default r'c:\data\temptryyql.json'
 
@@ -122,6 +120,7 @@ class GoogleStockDataExtract(object):
             self.form_full_url()
             self.retrieve_stockdata()
             temp_data_df = self.convert_json_to_df()
+#            pdb.set_trace()
             if len(self.result_google_ext_df) == 0:
                 self.result_google_ext_df = temp_data_df
             else:
@@ -133,31 +132,84 @@ class GoogleStockDataExtract(object):
             Some of names added the GS prefix to indicate resutls from google screener.
             Set to self.result_google_ext_df
         """
-        self.result_google_ext_df['PE'] = self.result_google_ext_df['PE'].str.replace(',','')
-        self.result_google_ext_df['PE'] = self.result_google_ext_df['PE'].astype('float')
-        self.result_google_ext_df['TotalDebtToEquityYear'] = self.result_google_ext_df['TotalDebtToEquityYear'].str.replace(',','')
-        self.result_google_ext_df['TotalDebtToEquityYear'] = self.result_google_ext_df['TotalDebtToEquityYear'].astype('float')
+#        self.result_google_ext_df['PE'] = self.result_google_ext_df['PE'].str.replace(',','')
+#        self.result_google_ext_df['PE'] = self.result_google_ext_df['PE'].astype('float')
+#        self.result_google_ext_df['TotalDebtToEquityYear'] = self.result_google_ext_df['TotalDebtToEquityYear'].str.replace(',','')
+#        self.result_google_ext_df['TotalDebtToEquityYear'] = self.result_google_ext_df['TotalDebtToEquityYear'].astype('float')
 #        pdb.set_trace()
         self.result_google_ext_df = self.result_google_ext_df.rename(columns={
-#            'CompanyName':'GS_CompanyName',
-#             'AverageVolume':'GS_AverageVolume',
-#             'Volume':'GS_Volume',
-             'AINTCOV':'Interest_coverage'
-#             'DividendYield':'TRAILINGANNUALDIVIDENDYIELDINPERCENT',
-#             'PE':'PERATIO', 
-#             'TotalDebtToEquityYear':'TotalDebttoEquity',
-#             'PriceToBook':'PRICEBOOK',
-#             'CurrentRatioYear':'CurrentRatio',
-                                                                                })
-
+                         'DividendPerShare': 'DPS_TTM',
+                         'DPSRecentYear': 'DPS_RecentYear',
+                         'IAD': 'Dividend_NextYear',
+                         'Dividend': 'Dividend_RecentYear',
+                         'EBITDMargin': 'MarginEBITD_TTM',
+                         'GrossMargin':'MarginGross_TTM',
+                         'OperatingMargin': 'MarginOperating_TTM',
+                         'NetProfitMarginPercent': 'MarginNetProfit_TTM',
+                         'Price50DayAverage': 'PriceAverage_50Day',
+                         'Price150DayAverage': 'PriceAverage_150Day',
+                         'Price200DayAverage': 'PriceAverage_200Day',
+                         'Price13WeekPercChange': 'PricePercChange_13Week',
+                         'Price26WeekPercChange': 'PricePercChange_26Week',
+                         'Price52WeekPercChange': 'PricePercChange_52Week',
+                         'PE' : 'PriceToEquity',
+                         'PriceSales': 'PriceToSales_TTM', 
+                         'AINTCOV':'InterestCoverage_Year',
+                         'ReturnOnAssets5Years': 'ROA_5years',
+                         'ReturnOnAssetsTTM': 'ROA_TTM',
+                         'ReturnOnAssetsYear':'ROA_year',
+                         'ReturnOnEquity5Years': 'ROE_5years',
+                         'ReturnOnEquityTTM': 'ROE_TTM',
+                         'ReturnOnEquityYear': 'ROE_year',
+                         'ReturnOnInvestment5Years': 'ROI_5years',
+                         'ReturnOnInvestmentTTM': 'ROI_TTM',
+                         'ReturnOnInvestmentYear': 'ROI_year',
+                         'NetIncomeGrowthRate5Years': 'GrowthRateNetIncome_5years',
+                         'RevenueGrowthRate5Years': 'GrowthRateRevenue_5years',
+                         'RevenueGrowthRate10Years': 'GrowthRateRevenue_10years',
+                         'EPSGrowthRate5Years': 'GrowthRateEPS_5years',
+                         'EPSGrowthRate10Years': 'GrowthRateEPS_10years',
+                         })
+        firstcols = ['CompanyName', 'SYMBOL', 'MarketCap', 'Volume', 'AverageVolume', 
+                  'QuoteLast', 'QuotePercChange', 'High52Week', 'Low52Week', 'Beta', 'Float'
+                  ] 
+                  
+        t = hh.result_google_ext_df.columns.tolist()
+        restcols = [col for col in t if col not in firstcols]
+        restcols.sort()
+        finalcols = firstcols + restcols
+        self.result_google_ext_df = self.result_google_ext_df[finalcols]
+        
+#        for col in self.result_google_ext_df.columns.tolist()[2:]:
+#            self.result_google_ext_df[col] = self.result_google_ext_df[col].astype('float')
+                                                                    
+        
+        def f(num_str):
+            powers = {'T': 10 ** 12, 'B': 10 ** 9, 'M': 10 ** 6, 'K': 10 ** 3}
+            match = re.search(r"([0-9\.]+)\s?(T|B|M|K)", num_str)
+            if match is not None:
+                quantity = match.group(1)
+                magnitude = match.group(2)
+                return float(quantity) * powers[magnitude]
+            else:
+                return float(num_str)
+#        self.result_google_ext_df = self.result_google_ext_df.replace(r'^$', np.nan, regex=True)  
+        power
+        for col in ['MarketCap', 'Volume', 'AverageVolume']: 
+            self.result_google_ext_df[col] = self.result_google_ext_df[col].astype(str)
+            self.result_google_ext_df[col] = self.result_google_ext_df[col].replace(r'^$', np.nan, regex=True) 
+            self.result_google_ext_df[col] = self.result_google_ext_df[col].str.replace(',','')
+            self.result_google_ext_df[col] = self.result_google_ext_df[col].apply(f)
+      
+      
 if __name__ == '__main__':
 
     choice  = 2
 
     if choice == 2:
-        hh = GoogleStockDataExtract('HKG')
+        hh = GoogleStockDataExtract('SGX')
         hh.retrieve_all_stock_data()
-        
-        print hh.result_google_ext_df.head()
+
+        print hh.result_google_ext_df.columns.tolist()
         hh.result_google_ext_df.to_csv(r'./temp.csv', index =False)
 
