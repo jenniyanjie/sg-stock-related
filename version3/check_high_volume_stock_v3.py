@@ -12,7 +12,7 @@ from time import time
 from google_screener_data_extract import GoogleStockDataExtract
 import numpy as np
 import matplotlib
-matplotlib.use("Agg")
+#matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import matplotlib.dates as mdates
@@ -26,7 +26,7 @@ else:
 #    writeDir = os.getcwd()
     writeDir = '/Users/Jennifer/Google Drive/highVolumnStock' # for mac usage
 
-def stock_screener(exchange = 'SGX', df):
+def stock_screener(df, exchange = 'SGX'):
     '''
     exchange: 'SGX' or 'HKG'
     df: the dataframe of the stock stats: useful col:
@@ -320,10 +320,19 @@ if __name__ == "__main__":
     
     sgx = GoogleStockDataExtract('SGX')
     sgx.retrieve_all_stock_data()
+    sgx_df = sgx.result_google_ext_df
+#    sgx_df.to_csv(r'./SGX.csv', index = False)
+    sgx_df['ratio'] = sgx_df['Volume'] / sgx_df['AverageVolume']
+    plt.figure()
+    sgx_df['ratio'].plot.hist(alpha = 0.5, bins = 200)
+    plt.show()
     
+    sys.exit()
     hkg = GoogleStockDataExtract('HKG')
     hkg.retrieve_all_stock_data()
-    
+    hkg.result_google_ext_df.to_csv(r'./HKG.csv', index = False)
+ 
+    sys.exit()
     
     high_volume_stock = volume_scanner(writeDir)
     # plot the result

@@ -174,15 +174,11 @@ class GoogleStockDataExtract(object):
                   'QuoteLast', 'QuotePercChange', 'High52Week', 'Low52Week', 'Beta', 'Float'
                   ] 
                   
-        t = hh.result_google_ext_df.columns.tolist()
+        t = self.result_google_ext_df.columns.tolist()
         restcols = [col for col in t if col not in firstcols]
         restcols.sort()
         finalcols = firstcols + restcols
         self.result_google_ext_df = self.result_google_ext_df[finalcols]
-        
-#        for col in self.result_google_ext_df.columns.tolist()[2:]:
-#            self.result_google_ext_df[col] = self.result_google_ext_df[col].astype('float')
-                                                                    
         
         def f(num_str):
             powers = {'T': 10 ** 12, 'B': 10 ** 9, 'M': 10 ** 6, 'K': 10 ** 3}
@@ -193,15 +189,22 @@ class GoogleStockDataExtract(object):
                 return float(quantity) * powers[magnitude]
             else:
                 return float(num_str)
-#        self.result_google_ext_df = self.result_google_ext_df.replace(r'^$', np.nan, regex=True)  
-        power
-        for col in ['MarketCap', 'Volume', 'AverageVolume']: 
+                
+        keycols = ['CompanyName', 'SYMBOL'] # str type
+        powercols = ['MarketCap', 'Volume', 'AverageVolume']
+        floatcols = [col for col in finalcols if col not in (keycols + powercols)]
+        for col in powercols: 
             self.result_google_ext_df[col] = self.result_google_ext_df[col].astype(str)
             self.result_google_ext_df[col] = self.result_google_ext_df[col].replace(r'^$', np.nan, regex=True) 
             self.result_google_ext_df[col] = self.result_google_ext_df[col].str.replace(',','')
             self.result_google_ext_df[col] = self.result_google_ext_df[col].apply(f)
-      
-      
+        for col in floatcols:
+            self.result_google_ext_df[col] = self.result_google_ext_df[col].astype(str)
+            self.result_google_ext_df[col] = self.result_google_ext_df[col].replace(r'^$', np.nan, regex=True) 
+            self.result_google_ext_df[col] = self.result_google_ext_df[col].str.replace(',','')            
+            self.result_google_ext_df[col] = self.result_google_ext_df[col].astype('float')
+            
+#%% main()
 if __name__ == '__main__':
 
     choice  = 2
