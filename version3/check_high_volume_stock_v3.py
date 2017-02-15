@@ -318,24 +318,38 @@ def graphStock(stock, MA1, MA2, writeDir = os.getcwd()):
 if __name__ == "__main__":
     writeDir = '/Users/Jennifer/Google Drive/highVolumnStock' # for Jennifer's mac usage
     
+    
+    #SGX --------------------------------------------------------------------#  
     sgx = GoogleStockDataExtract('SGX')
     sgx.retrieve_all_stock_data()
     sgx_df = sgx.result_google_ext_df
-#    sgx_df.to_csv(r'./SGX.csv', index = False)
+    sgx_df.to_csv(r'./SGX_all.csv', index = False)
     sgx_df['ratio'] = sgx_df['Volume'] / sgx_df['AverageVolume']
-    plt.figure()
-    sgx_df['ratio'].plot.hist(alpha = 0.5, bins = 200)
-    plt.show()
+    #sgx_selection:
+    tmp = sgx_df.loc[((sgx_df['ratio']>=6) & (sgx_df['QuotePercChange'] > 0) & (sgx_df['QuoteLast'] > sgx_df['PriceAverage_50Day'])), ]
+    tmp.to_csv(r'./SGX_select.csv', index = False)
+    sgx_sele_symbol = [symb + '.SI' for symb in tmp['SYMBOL'].tolist()]
     
-    sys.exit()
+#    #plot the ratio of all stocks
+#    plt.figure()
+#    sgx_df['ratio'].plot.hist(alpha = 0.5, bins = 200)
+#    plt.show()
+    
+    
+    #HKG --------------------------------------------------------------------#
     hkg = GoogleStockDataExtract('HKG')
     hkg.retrieve_all_stock_data()
-    hkg.result_google_ext_df.to_csv(r'./HKG.csv', index = False)
- 
+    hkg_df = hkg.result_google_ext_df
+    hkg_df.to_csv(r'./HKG_all.csv', index = False)
+    hkg_df['ratio'] = hkg_df['Volume'] / hkg_df['AverageVolume']
+    #sgx_selection:
+    tmp = hkg_df.loc[((hkg_df['ratio']>=6) & (hkg_df['QuotePercChange'] > 0) & (hkg_df['QuoteLast'] > hkg_df['PriceAverage_50Day'])), ]
+    tmp.to_csv(r'./HKG_select.csv', index = False)
+    hkg_sele_symbol = [symb + '.HK' for symb in tmp['SYMBOL'].tolist()] 
     sys.exit()
     
-    high_volume_stock = volume_scanner(writeDir)
-    # plot the result
-    for symb in high_volume_stock:
+    symbols = sgx_sele_symbol + hkg_sele_symbol
+    # plot the result -------------------------------------------------------#
+    for symb in symbols:
         graphStock(symb, 50, 100, writeDir)
         
