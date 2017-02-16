@@ -5,14 +5,14 @@ Created on Sun May 29 17:19:35 2016
 @author: Jennifer
 """
 from __future__ import division
-import sys, os, errno, urllib2
+import sys, os, errno, urllib2, pdb
 from re import sub
 from datetime import datetime
 from time import time
 from google_screener_data_extract import GoogleStockDataExtract
 import numpy as np
 import matplotlib
-#matplotlib.use("Agg")
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import matplotlib.dates as mdates
@@ -26,15 +26,36 @@ else:
 #    writeDir = os.getcwd()
     writeDir = '/Users/Jennifer/Google Drive/highVolumnStock' # for mac usage
 
-def stock_screener(df, exchange = 'SGX'):
+def stockScreener(exchange = 'SGX', op_all = False, op_sele = True, workDir = os.getcwd()):
     '''
     exchange: 'SGX' or 'HKG'
-    df: the dataframe of the stock stats: useful col:
-        'CompanyName','SYMBOL','MarketCap', 'Volume', 'AverageVolume', 
-        'QuoteLast', 'QuotePercChange'
+    return: a list of stock symbols
     '''
+    suffix = {'SGX':'.SI', 'HKG': '.HK'}
     
-    return
+    h = GoogleStockDataExtract(exchange)
+    h.retrieve_all_stock_data()
+    h_df = h.result_google_ext_df
+
+    if op_all:
+        op_f_all = os.path.join(workDir,'checkHighVolume_' + \
+                            datetime.now().strftime('%Y%m%d-%H%M') + \
+                            '_all_' + exchange + '.csv')
+        h_df.to_csv(op_f_all, index = False)
+        
+    #selection:
+    h_df['ratio'] = h_df['Volume'] / h_df['AverageVolume']
+    
+    sele = h_df.loc[((h_df['ratio'] >= 6) & (h_df['QuotePercChange'] > 0) & \
+                    (h_df['QuoteLast'] > h_df['PriceAverage_50Day']) & \
+                    (h_df['TotalDebtToEquityQuarter'] < 100)), ]                   
+    if op_sele:
+        op_f_sele = os.path.join(workDir,'checkHighVolume_' + \
+                    datetime.now().strftime('%Y%m%d-%H%M') + \
+                    '_select_' + exchange + '.csv')
+        sele.to_csv(op_f_sele, index = False)     
+    symbols = [symb + suffix[exchange] for symb in sele['SYMBOL'].tolist()]
+    return symbols
 
 #TODO: select data based on creteria, get the symbo list, print the selected df
    
@@ -316,39 +337,16 @@ def graphStock(stock, MA1, MA2, writeDir = os.getcwd()):
 
 #%% main
 if __name__ == "__main__":
-    writeDir = '/Users/Jennifer/Google Drive/highVolumnStock' # for Jennifer's mac usage
-    
+#    writeDir = '/Users/Jennifer/Google Drive/highVolumnStock' # for Jennifer's mac usage
+    writeDir = os.getcwd()
     
     #SGX --------------------------------------------------------------------#  
-    sgx = GoogleStockDataExtract('SGX')
-    sgx.retrieve_all_stock_data()
-    sgx_df = sgx.result_google_ext_df
-    sgx_df.to_csv(r'./SGX_all.csv', index = False)
-    sgx_df['ratio'] = sgx_df['Volume'] / sgx_df['AverageVolume']
-    #sgx_selection:
-    tmp = sgx_df.loc[((sgx_df['ratio']>=6) & (sgx_df['QuotePercChange'] > 0) & (sgx_df['QuoteLast'] > sgx_df['PriceAverage_50Day'])), ]
-    tmp.to_csv(r'./SGX_select.csv', index = False)
-    sgx_sele_symbol = [symb + '.SI' for symb in tmp['SYMBOL'].tolist()]
+    sgx_symb = stockScreener(exchange = 'SGX')
     
-#    #plot the ratio of all stocks
-#    plt.figure()
-#    sgx_df['ratio'].plot.hist(alpha = 0.5, bins = 200)
-#    plt.show()
-    
-    
-    #HKG --------------------------------------------------------------------#
-    hkg = GoogleStockDataExtract('HKG')
-    hkg.retrieve_all_stock_data()
-    hkg_df = hkg.result_google_ext_df
-    hkg_df.to_csv(r'./HKG_all.csv', index = False)
-    hkg_df['ratio'] = hkg_df['Volume'] / hkg_df['AverageVolume']
-    #sgx_selection:
-    tmp = hkg_df.loc[((hkg_df['ratio']>=6) & (hkg_df['QuotePercChange'] > 0) & (hkg_df['QuoteLast'] > hkg_df['PriceAverage_50Day'])), ]
-    tmp.to_csv(r'./HKG_select.csv', index = False)
-    hkg_sele_symbol = [symb + '.HK' for symb in tmp['SYMBOL'].tolist()] 
-    sys.exit()
-    
-    symbols = sgx_sele_symbol + hkg_sele_symbol
+    #HKG --------------------------------------------------------------------#    
+    hkg_symb = stockScreener(exchange = 'HKG')
+
+    symbols = sgx_symb + hkg_symb
     # plot the result -------------------------------------------------------#
     for symb in symbols:
         graphStock(symb, 50, 100, writeDir)
