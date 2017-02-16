@@ -2,6 +2,7 @@
 from __future__ import division
 import string, re, os, time, smtplib, sys, urllib2, pandas
 from urllib import urlopen
+from datetime import datetime
 import httplib, urllib #used in the Pushover code
 #import numpy as np
 import requests
@@ -29,13 +30,10 @@ def quote_grab(symbol):
             #therefore I strip the "" from that string and pass it to the float function.
             priceStr = m.group(2).strip('"')
             price = float(priceStr)
-           
-       
+  
     urlData.close()
     return price #returns price as a float
 
-#    urlToVisit = 'http://finance.yahoo.com/d/quotes.csv?s=' +\
-#                stknm[:-1] + '&f=sva2l1pm3'
 def quoteGrab(symbols):
     '''
     grab the last price and previous close price for the symb in symbols
@@ -89,13 +87,13 @@ def pushbullet(title, body):
         print 'complete sending'
         
 def send_email(sbjt, msg):
-    fromaddr = 'INSERT HERE THE FROM EMAIL ADDRESS'
-    toaddrs = 'INSERT THE EMAIL ADDRESS THE NOTIFICATION WILL BE SENT TO'
+    fromaddr = 'jenniyanjie@gmail.com'
+    toaddrs = 'jennyyanjennyyan@gmail.com'
     bodytext = 'From: %s\nTo: %s\nSubject: %s\n\n%s' %(fromaddr, toaddrs, sbjt, msg)
    
     # Credentials (if needed)
     username = 'jenniyanjie@gmail.com' #'USERNAME@gmail.com'
-    password = 'INSERT HERE YOUR PASSWORD' 
+    password = 'Sdfz880201' 
   
     # The actual mail sent
     server = smtplib.SMTP('smtp.gmail.com:587')
@@ -140,14 +138,17 @@ name, token, user, emailaddress, stocklist\n
 
 if __name__ == '__main__':
     body = 'Major Price Changes:\n'
-    symbols = ['AAPL', 'AWX.SI', 'BN2.SI']
     
+    symbols = ['AAPL', 'AWX.SI', 'BN2.SI'] # TODO: where to get the symbols
+    
+    timestamp = datetime.now().strftime('%Y%m%d-%H%M')
     price_df = quoteGrab(symbols)
     if not price_df.size == 0:
         for row in price_df.itertuples(index=True, name='Pandas'):
             body = body + 'Price for {0} went {1} to {2:.2f}% with last quote {3}'.format(getattr(row, "SYMBOL").strip('"'), getattr(row, "chg"), getattr(row, "chgV"), getattr(row, "LastQuote"))
-        print 'sending email...'
-        send_email('Stock Price Changes',body)
+        
+        print 'sending email...' # apply a gmail accont
+        send_email('Stock Price Changes' + timestamp, body)
         print 'sending message to pushover...'
-        pushbullet('Stock Price Changes', body)
+        pushbullet('Stock Price Changes' + timestamp, body)
     
