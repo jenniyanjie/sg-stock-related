@@ -87,13 +87,13 @@ def pushbullet(title, body):
         print 'complete sending'
         
 def send_email(sbjt, msg):
-    fromaddr = 'jenniyanjie@gmail.com'
-    toaddrs = 'jennyyanjennyyan@gmail.com'
+    fromaddr = 'fromaddr@gmail.com'
+    toaddrs = 'toaddrs@gmail.com'
     bodytext = 'From: %s\nTo: %s\nSubject: %s\n\n%s' %(fromaddr, toaddrs, sbjt, msg)
    
     # Credentials (if needed)
-    username = 'jenniyanjie@gmail.com' #'USERNAME@gmail.com'
-    password = 'Sdfz880201' 
+    username = 'fromaddr@gmail.com' #'USERNAME@gmail.com'
+    password = password
   
     # The actual mail sent
     server = smtplib.SMTP('smtp.gmail.com:587')
